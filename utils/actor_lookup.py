@@ -7,7 +7,8 @@ from difflib import SequenceMatcher
 # 👉 API ключове
 import os
 openai.api_key = os.getenv("OPENAI_API_KEY")
-TMDB_API_KEY = "f0ff84eb0277780c7c064d1e426acba7"
+TMDB_API_KEY = os.getenv("TMDB_API_KEY")
+
 
 def is_valid_character_name(name: str) -> bool:
     if not name or len(name) < 2:

@@ -3,7 +3,11 @@ import re
 from typing import Optional
 
 # 🔐 ВАЖНО: увери се, че този ключ е валиден
-TMDB_API_KEY = "f0ff84eb0277780c7c064d1e426acba7"
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 
 def get_movie_genre(title: str) -> Optional[str]:
     def try_tmdb_query(title_query: str) -> Optional[dict]:
