@@ -15,7 +15,8 @@ RUN pip install --upgrade pip setuptools wheel
 
 # Копираме requirements и инсталираме Python зависимости (вкл. FAISS)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir pip-tools && \
+    pip-sync requirements.txt
 
 # Копираме цялото приложение в контейнера
 WORKDIR /app

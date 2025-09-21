@@ -1,0 +1,16 @@
+flask
+faiss-cpu
+openai
+faster-whisper
+firebase-admin
+sentence-transformers
+torch
+torchvision
+torchaudio
+langchain
+nltk
+scikit-learn
+requests
+numpy
+
+
