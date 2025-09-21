@@ -23,7 +23,7 @@ dataclasses-json==0.6.7
 decorator==5.2.1
 distro==1.9.0
 dotenv==0.9.9
-faiss-cpu==1.7.4
+faiss-cpu==1.7.3
 faster-whisper==1.2.0
 ffmpeg-python==0.2.0
 filelock==3.19.1
