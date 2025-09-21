@@ -14,5 +14,6 @@ requests
 numpy
 networkx>=3.1,<3.3
 flask-cors
+python-dotenv
 
 
