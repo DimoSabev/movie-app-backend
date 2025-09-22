@@ -1,13 +1,12 @@
 
 import openai
 import os
+import tiktoken  # ВАЖНО: да е най-отгоре с другите импорти
 from textwrap import dedent
 from utils.actor_lookup import get_actor_name
 
-
+# Настройване на OpenAI API ключа
 openai.api_key = os.getenv("OPENAI_API_KEY")
-client = openai.OpenAI()
-
 
 def summarize_scene(scene_text, movie_name=None):
     prompt = f"""
@@ -21,7 +20,7 @@ Scene:
 \"\"\"
 """
 
-    response = client.chat.completions.create(
+    response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
@@ -32,13 +31,9 @@ Scene:
 
     return response.choices[0].message.content.strip()
 
-
-import tiktoken  # ⬅️ ВАЖНО: да е най-отгоре с другите импорти
-
 def count_tokens(text: str, model: str = "gpt-3.5-turbo") -> int:
     encoding = tiktoken.encoding_for_model(model)
     return len(encoding.encode(text))
-
 
 def summarize_until_now(scenes, movie_name=None, max_tokens=15000):
     scene_summaries = []
@@ -78,7 +73,7 @@ Do not add commentary or interpretation — just narrate the story as it unfolds
             break
 
         try:
-            response = client.chat.completions.create(
+            response = openai.ChatCompletion.create(
                 model=model,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
@@ -116,7 +111,7 @@ Do not add commentary or interpretation — just narrate the story as it unfolds
     """)
 
     try:
-        final_response = client.chat.completions.create(
+        final_response = openai.ChatCompletion.create(
             model=model,
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
@@ -129,6 +124,7 @@ Do not add commentary or interpretation — just narrate the story as it unfolds
     except Exception as e:
         print(f"[ERROR] Failed to generate final summary: {e}")
         return "⚠️ Error summarizing scenes."
+
 
 
 import openai
