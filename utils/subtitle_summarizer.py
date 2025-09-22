@@ -135,15 +135,9 @@ import re
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def extract_character_profiles(summary_text: str, movie_name: str | None = None, max_characters: int = 10):
-    """
-    Извлича персонажи от готовия summary, с кратко разказно описание вместо 'evidence'.
-    Премахва 'mentioned_in_scenes' и филтрира не-човешки обекти.
-    """
-
     if not summary_text or not isinstance(summary_text, str):
         return []
 
-    # За контекст, ако има сцени
     scene_numbers = [int(n) for n in re.findall(r'—+\s*Scene\s+(\d+)\s*—+', summary_text)]
     scene_hint = f"Known scene numbers: {scene_numbers}" if scene_numbers else "No scene markers found."
 
@@ -177,7 +171,7 @@ SUMMARY:
 """
 
     try:
-        response = openai.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You extract structured profiles of characters from movie summaries."},
@@ -192,15 +186,12 @@ SUMMARY:
         parsed = json.loads(raw)
         characters = parsed.get("characters", [])
 
-        # Филтриране на не-човешки имена
-        # Филтриране на не-човешки имена
         filtered = []
         for c in characters:
             name = (c.get("name") or "").lower()
             if any(x in name for x in ["club", "facebook", "harvard", "phoenix", "porcellian", "final"]):
                 continue
 
-            # Филтрирай само човешки relationships
             valid_relationships = []
             for rel in c.get("relationships", []):
                 with_name = rel.get("with", "").lower()
@@ -208,7 +199,6 @@ SUMMARY:
                     valid_relationships.append(rel)
             c["relationships"] = valid_relationships
 
-            # 🆕 Добавяне на actor, използвайки get_actor_name
             try:
                 actor_name = get_actor_name(c.get("name", ""), movie_name or "")
                 c["actor"] = actor_name if actor_name else None
