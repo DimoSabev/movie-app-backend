@@ -11,7 +11,7 @@ def generate_visual_prompt(summary: str) -> str:
     Генерира изключително прост и стилово строго ограничен prompt, подходящ за DALL·E, с фокус върху плоски илюстрации в cartoon стил.
     """
     try:
-        response = openai.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
                 {
@@ -33,7 +33,8 @@ def generate_visual_prompt(summary: str) -> str:
                         f"Summary: {summary}"
                     )
                 }
-            ]
+            ],
+            temperature=0.3
         )
 
         return response.choices[0].message.content.strip()
@@ -45,17 +46,17 @@ def generate_visual_prompt(summary: str) -> str:
 
 def generate_image(prompt: str, size="1024x1024") -> str:
     """
-    Изпраща визуален prompt към DALL·E 3 и връща URL на изображението.
+    Изпраща визуален prompt към DALL·E и връща URL на изображението.
     """
     try:
-        image_response = openai.images.generate(
+        image_response = openai.Image.create(
             model="dall-e-3",
             prompt=prompt,
             size=size,
             quality="standard",
             n=1
         )
-        return image_response.data[0].url
+        return image_response["data"][0]["url"]
 
     except Exception as e:
         print(f"[ERROR] Image generation failed: {e}")
