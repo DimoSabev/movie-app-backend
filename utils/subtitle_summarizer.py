@@ -5,10 +5,18 @@ import tiktoken  # ВАЖНО: да е най-отгоре с другите и�
 from textwrap import dedent
 from utils.actor_lookup import get_actor_name
 
+
+
 # Настройване на OpenAI API ключа
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def summarize_scene(scene_text, movie_name=None):
+
+def summarize_scene(scene_text, movie_name=None, request_id=None):
+    from app import cancelled_requests
+    if request_id and request_id in cancelled_requests:
+        cancelled_requests.discard(request_id)
+        raise Exception("Request was cancelled during summarize_scene")
+
     prompt = f"""
 You are a professional movie assistant. Your task is to write a short and coherent third-person summary of all the scenes up to this point in the movie. Focus on what has happened so far — key actions, settings, character interactions, and developments.
 Do NOT quote or copy the dialogue. Just describe the scene like you're telling someone what happens in a film.
@@ -31,17 +39,27 @@ Scene:
 
     return response.choices[0].message.content.strip()
 
+class CancelledEarlyException(Exception):
+    pass
+
 def count_tokens(text: str, model: str = "gpt-3.5-turbo") -> int:
     encoding = tiktoken.encoding_for_model(model)
     return len(encoding.encode(text))
 
-def summarize_until_now(scenes, movie_name=None, max_tokens=15000):
+def summarize_until_now(scenes, movie_name=None, max_tokens=15000, request_id=None):
     scene_summaries = []
     context_so_far = ""
     model = "gpt-3.5-turbo"
     intro_tokens = count_tokens(f'Филмът "{movie_name or "Unknown"}" започва със сцената...\n\n', model=model)
 
     for i, scene in enumerate(scenes):
+        from app import cancelled_requests
+        # 🟢 Прекъсваме *преди* започване на scene[i]
+        if request_id and request_id in cancelled_requests:
+            print(f"[CANCEL] Прекъсване между сцена {i} и {i + 1} за заявка {request_id}")
+            cancelled_requests.discard(request_id)
+            raise CancelledEarlyException()
+
         prompt = dedent(f"""
         You are a professional movie assistant helping summarize scenes for the film "{movie_name or 'Unknown'}".
 
@@ -49,7 +67,7 @@ def summarize_until_now(scenes, movie_name=None, max_tokens=15000):
 
         Instructions:
         - Mention the location briefly **only when it's new or relevant**. Do not repeat the same setting in every scene.
-        - Use short character names (Mark, Eduardo), not full names, unless needed for clarity.
+        - Use short character names, not full names, unless needed for clarity.
         - Avoid repeating information already known from earlier scenes.
         - Add **more specific detail** about what happens (e.g., arguments, decisions, physical actions).
         - 3–6 sentences per scene. Clear. Cinematic. Detailed.
@@ -81,6 +99,13 @@ Do not add commentary or interpretation — just narrate the story as it unfolds
                 ],
                 temperature=0.6
             )
+
+            # ✅ Проверка веднага след като върне отговор, преди да го обработим
+            if request_id and request_id in cancelled_requests:
+                print(f"[CANCEL] Прекратен response след scene {i + 1} за заявка {request_id}")
+                cancelled_requests.discard(request_id)
+                raise Exception(f"Request {request_id} was cancelled after scene {i + 1} response")
+
             scene_summary = response.choices[0].message.content.strip()
             scene_summaries.append(f"———— Scene {i + 1} ————\n{scene_summary}")
             context_so_far += "\n" + scene_summary
@@ -92,7 +117,6 @@ Do not add commentary or interpretation — just narrate the story as it unfolds
     if not scene_summaries:
         return "⚠️ Сцените са твърде дълги и не могат да бъдат обобщени в рамките на токен лимита."
 
-    # Въведение преди всички сцени
     introduction = f'Филмът "{movie_name or "Unknown"}" започва със сцената...\n\n'
 
     final_prompt = dedent(f"""
@@ -110,6 +134,13 @@ Do not add commentary or interpretation — just narrate the story as it unfolds
     {chr(10).join(scene_summaries)}
     """)
 
+    # 🛑 Проверка преди финалния call
+    from app import cancelled_requests
+    if request_id and request_id in cancelled_requests:
+        print(f"[CANCEL] Финално обобщение прекратено преди отправяне на заявката за {request_id}")
+        cancelled_requests.discard(request_id)
+        raise CancelledEarlyException()
+
     try:
         final_response = openai.ChatCompletion.create(
             model=model,
@@ -119,6 +150,13 @@ Do not add commentary or interpretation — just narrate the story as it unfolds
             ],
             temperature=0.6
         )
+
+        # ✅ Проверка след финалния response
+        if request_id and request_id in cancelled_requests:
+            print(f"[CANCEL] Финалният response е прекратен за заявка {request_id}")
+            cancelled_requests.discard(request_id)
+            raise CancelledEarlyException()
+
         return final_response.choices[0].message.content.strip()
 
     except Exception as e:
@@ -134,9 +172,14 @@ import re
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def extract_character_profiles(summary_text: str, movie_name: str | None = None, max_characters: int = 10):
+def extract_character_profiles(summary_text: str, movie_name: str | None = None, max_characters: int = 10, request_id=None):
     if not summary_text or not isinstance(summary_text, str):
         return []
+
+    from app import cancelled_requests
+    if request_id and request_id in cancelled_requests:
+        cancelled_requests.discard(request_id)
+        raise Exception("Request was cancelled before extract_character_profiles")
 
     scene_numbers = [int(n) for n in re.findall(r'—+\s*Scene\s+(\d+)\s*—+', summary_text)]
     scene_hint = f"Known scene numbers: {scene_numbers}" if scene_numbers else "No scene markers found."
@@ -159,7 +202,7 @@ Return strict JSON in this format:
   ]
 }}
 
-Include up to {max_characters} characters. Use natural short names (e.g., Mark, Eduardo).
+Include up to {max_characters} characters. Use natural short names.
 DO NOT include 'mentioned_in_scenes'.
 DO NOT include clubs or schools as characters.
 
@@ -179,6 +222,11 @@ SUMMARY:
             ],
             temperature=0.3,
         )
+
+        # 🛑 Проверка след response, преди обработка
+        if request_id and request_id in cancelled_requests:
+            cancelled_requests.discard(request_id)
+            raise Exception("Request was cancelled after extract_character_profiles response")
 
         raw = response.choices[0].message.content.strip()
         raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw)

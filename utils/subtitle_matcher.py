@@ -44,18 +44,47 @@ def find_best_match(user_text, index, mapping, embedder, top_k=1):
     vector = np.array([embedder.embed_text(user_text)]).astype("float32")
     distances, indices = index.search(vector, top_k)
 
+    dist_threshold = 0.35  # 🚫 Всичко над 0.35 се отрязва
+
     results = []
+    print("\n🔎 Започва проверка на резултатите чрез филтъра...\n")
+
     for i, score in zip(indices[0], distances[0]):
         try:
             scene = mapping[i]
-            if isinstance(scene, dict):
-                result = scene.copy()
-                result["score"] = float(score)
-                results.append(result)
-            else:
-                print(f"⚠️ Очакван речник, но получен тип {type(scene)}")
+            if not isinstance(scene, dict):
+                continue
+
+            result = scene.copy()
+            result["score"] = float(score)
+
+            user_text_clean = user_text.strip()
+            words = user_text_clean.lower().split()
+            user_text_len = len(words)
+            unique_words = set(words)
+
+            # --- Филтри ---
+            reasons = []
+            if score > dist_threshold:
+                reasons.append(f"дистанция твърде голяма (score={score:.4f})")
+            if user_text_len < 5 or len(unique_words) < 4:
+                reasons.append("твърде кратък или малко уникални думи")
+
+            if reasons:
+                print(f"[❌ ФИЛТЪР] '{user_text_clean}' ❌ Причини: {', '.join(reasons)}")
+                continue
+
+            print(
+                f"[✅ ДОБАВЕНО] '{user_text_clean}' ✅ | "
+                f"len={user_text_len}, unique={len(unique_words)}, score={score:.4f}"
+            )
+            results.append(result)
+
         except Exception as e:
-            print(f"❌ Грешка при обработка на mapping[{i}]: {e}")
+            print(f"❌ Грешка при mapping[{i}]: {e}")
+
+    if not results:
+        print("⚠️ Няма адекватни резултати → No match found")
 
     return results
 

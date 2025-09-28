@@ -33,7 +33,8 @@ from utils.actor_lookup import get_actor_name
 from utils.genre_lookup import get_movie_genre
 
 
-
+# 🟦 Регистър за отменени заявки
+cancelled_requests = set()
 
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -45,6 +46,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 INDEX_PATH = "embeddings/subtitle_index.faiss"
 MAPPING_PATH = "embeddings/subtitle_mapping.pkl"
 
+from utils.subtitle_summarizer import CancelledEarlyException  # Заменѝ с истинския модул
 
 @app.route('/')
 def home():
@@ -53,75 +55,83 @@ def home():
 @app.route("/summarize", methods=["POST"])
 def summarize():
     try:
-        input_text = None
+        import uuid
 
-        # 🟦 1. JSON със "text"
+        input_text = None
+        request_id = None
+
+        # 🆕 Генерираме или вземаме request_id
         if request.is_json:
             data = request.get_json()
             input_text = data.get("text")
+            request_id = data.get("request_id", str(uuid.uuid4()))
 
-        # 🟦 2. Аудио файл
+
         elif "audio" in request.files:
+
             audio_file = request.files["audio"]
+
             audio_path = "temp_audio.wav"
+
             audio_file.save(audio_path)
 
             print("🎤 Получен е аудио файл:", audio_path)
+
             input_text = transcribe_audio(audio_path)
+
             print("📝 Извлечен текст:", input_text)
 
-        # 🔴 Грешка при липса на текст
+            # ✅ ВЗЕМИ request_id от multipart, ако го има
+
+            request_id = request.form.get("request_id", str(uuid.uuid4()))
+
+        else:
+            request_id = str(uuid.uuid4())
+
+        # 🔴 Ако няма текст – край
         if not input_text:
             return jsonify({"error": "No input text provided"}), 400
 
-        # ✅ Зареждане на индекса и embedding-а в реално време
+        # ✅ Зареждане на индекса и embedding-а
         index, mapping = load_index_and_mapping(INDEX_PATH, MAPPING_PATH)
         embedder = SimpleEmbedder()
 
-        # 🟩 Търсене на сцена
+        # 🔍 Най-добро съвпадение
         matches = find_best_match(input_text, index, mapping, embedder)
         if not matches:
             return jsonify({"error": "No match found"}), 404
 
         best = matches[0]
-        lines = best["lines"]
         movie = best["movie"]
         timestamp = best["timestamp"]
 
         genre = get_movie_genre(movie)
-
         duration = get_movie_duration(movie, mapping)
 
         try:
-            # 🔄 Извличане на всички сцени до момента
             scenes_until_now = get_scenes_up_to(timestamp, movie, mapping)
             print(f"[DEBUG] Извлечени {len(scenes_until_now)} сцени до момента за филм {movie}")
             for i, scene in enumerate(scenes_until_now):
                 print(f"▶️ Сцена {i + 1}:\n{scene[:200]}...\n")
 
-            # 🧠 Обобщение на всички сцени до момента
-            summary = summarize_until_now(scenes_until_now, movie_name=movie)
+            summary = summarize_until_now(scenes_until_now, movie_name=movie, request_id=request_id)
+            character_profiles = extract_character_profiles(summary, movie_name=movie, request_id=request_id)
 
-            # 👤 Генериране на профили на герои
-            character_profiles = extract_character_profiles(summary, movie_name=movie)
-
-            # 🧩 Chunk-ване на сцените (напр. на всеки 5 сцени)
             scene_chunks = [
                 "\n".join(scenes_until_now[i:i + 5])
                 for i in range(0, len(scenes_until_now), 5)
             ]
-            print(f"[DEBUG] Създадени {len(scene_chunks)} чънка (по 5 сцени)")
+            print(f"[DEBUG] Създадени {len(scene_chunks)} чънка")
 
-            # 🧠 Обобщаване на всеки чънк
             chunk_summaries = []
             for i, chunk in enumerate(scene_chunks):
                 try:
-                    chunk_summary = summarize_scene(chunk, movie_name=movie)
+                    chunk_summary = summarize_scene(chunk, movie_name=movie, request_id=request_id)
                     print(f"[CHUNK {i + 1}] Обобщение: {chunk_summary}")
                     chunk_summaries.append(chunk_summary)
                 except Exception as e:
-                    print(f"[ERROR] Грешка при обобщаване на чънк {i + 1}: {e}")
-                    chunk_summaries.append("⚠️ Неуспешно обобщение на сцени.")
+                    print(f"[ERROR] Чънк {i + 1}: {e}")
+                    chunk_summaries.append("⚠️ Неуспешно обобщение.")
 
         except Exception as e:
             import traceback
@@ -130,6 +140,13 @@ def summarize():
             character_profiles = []
             chunk_summaries = []
 
+        # ✅ Финална проверка за отменена заявка
+        if request_id in cancelled_requests:
+            print(f"[CANCEL] Final cancellation for {request_id}")
+            cancelled_requests.discard(request_id)
+            return '', 204  # <- тук е ключът: връщаме празен отговор
+
+        # ✅ Съставяме пълен отговор
         from flask import Response
         import json
 
@@ -137,10 +154,11 @@ def summarize():
             "movie": movie,
             "genre": genre,
             "timestamp": timestamp,
-            "duration": duration,  # 🆕 добавено
+            "duration": duration,
             "summary_until_now": summary,
             "character_profiles": character_profiles,
-            "chunk_summaries": chunk_summaries
+            "chunk_summaries": chunk_summaries,
+            "request_id": request_id
         }
 
         print("[DEBUG] Отговор към клиента:")
@@ -151,28 +169,80 @@ def summarize():
             content_type="application/json"
         )
 
+    except CancelledEarlyException:
+        print("[FLASK] Прекратена заявка чрез CancelledEarlyException")
+        return '', 204
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/generate", methods=["POST"])
 def generate_images():
     """
     Приема JSON с summaries (списък от текстови резюмета) и връща списък от генерирани изображения.
+    Поддържа прекъсване чрез request_id.
     """
     try:
+        import uuid
+
         data = request.get_json()
         if not data:
             return jsonify({"error": "No input data"}), 400
 
         summaries = data.get("summaries", [])
         size = data.get("size", "1024x1024")
+        request_id = data.get("request_id", str(uuid.uuid4()))
 
         if not summaries:
             return jsonify({"error": "No summaries provided"}), 400
 
-        images = generate_images_from_summaries(summaries, chunk_size=1, size=size)
+        # 🔴 Проверка дали заявката е маркирана за спиране (още преди да започне)
+        if request_id in cancelled_requests:
+            cancelled_requests.discard(request_id)
+            print(f"[CANCEL] Заявката {request_id} е прекъсната преди старта на /generate")
+            return jsonify({"error": "Request was cancelled"}), 400
+
+        images = []
+        for i, summary in enumerate(summaries):
+            # 🔁 Проверка за cancel преди всяко изображение
+            if request_id in cancelled_requests:
+                print(f"[CANCEL] Image generation прекъснат при елемент {i + 1} за {request_id}")
+                cancelled_requests.discard(request_id)
+                return jsonify({"error": "Request was cancelled"}), 400
+
+            try:
+                imgs = generate_images_from_summaries([summary], chunk_size=1, size=size, request_id=request_id)
+
+                # ✅ Проверка СЛЕД като е получен отговор от OpenAI (или друга AI услуга)
+                if request_id in cancelled_requests:
+                    print(f"[CANCEL] Прекратяване СЛЕД генериране на изображение за {request_id}")
+                    cancelled_requests.discard(request_id)
+                    return jsonify({"error": "Request was cancelled"}), 204  # без съдържание
+
+                images.extend(imgs)
+            except Exception as e:
+                print(f"[ERROR] Неуспешно генериране на изображение за summary {i + 1}: {e}")
+                images.append(None)
 
         return jsonify({"images": images})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/cancel", methods=["POST"])
+def cancel_request():
+    try:
+        data = request.get_json()
+        request_id = data.get("request_id")
+
+        if not request_id:
+            return jsonify({"error": "No request_id provided"}), 400
+
+        cancelled_requests.add(request_id)
+        print(f"[CANCEL] Заявката {request_id} е маркирана като отменена.")
+        return jsonify({"status": "cancelled", "request_id": request_id})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

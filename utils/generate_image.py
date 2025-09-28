@@ -6,10 +6,16 @@ load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
-def generate_visual_prompt(summary: str) -> str:
+def generate_visual_prompt(summary: str, request_id=None) -> str:
     """
     Генерира изключително прост и стилово строго ограничен prompt, подходящ за DALL·E, с фокус върху плоски илюстрации в cartoon стил.
     """
+    from app import cancelled_requests
+    if request_id and request_id in cancelled_requests:
+        print(f"[CANCEL] Прекъсване на функцията generate_visual_prompt за заявка {request_id}")
+        cancelled_requests.discard(request_id)
+        raise Exception(f"Request {request_id} was cancelled during generate_visual_prompt")
+
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4",
@@ -44,10 +50,16 @@ def generate_visual_prompt(summary: str) -> str:
         return "Flat illustration, cartoon-style, 2D vector art of a simple action with minimal background"
 
 
-def generate_image(prompt: str, size="1024x1024") -> str:
+def generate_image(prompt: str, size="1024x1024", request_id=None) -> str:
     """
     Изпраща визуален prompt към DALL·E и връща URL на изображението.
     """
+    from app import cancelled_requests
+    if request_id and request_id in cancelled_requests:
+        print(f"[CANCEL] Прекъсване на функцията generate_image за заявка {request_id}")
+        cancelled_requests.discard(request_id)
+        raise Exception(f"Request {request_id} was cancelled during generate_image")
+
     try:
         image_response = openai.Image.create(
             model="dall-e-3",
@@ -63,18 +75,25 @@ def generate_image(prompt: str, size="1024x1024") -> str:
         return None
 
 
-def generate_images_from_summaries(summaries: list[str], chunk_size: int = 5, size="1024x1024") -> list[dict]:
+def generate_images_from_summaries(summaries: list[str], chunk_size: int = 5, size="1024x1024", request_id=None) -> list[dict]:
     """
     Разделя списъка от summary фрагменти на парчета от `chunk_size` и генерира изображение за всяко.
     Връща списък от речници: {index, visual_prompt, image_url}.
     """
     images = []
+    from app import cancelled_requests  # ✅ за да проверяваме cancel глобално
+
     for i in range(0, len(summaries), chunk_size):
+        if request_id and request_id in cancelled_requests:
+            print(f"[CANCEL] Image generation прекъснато за {request_id}")
+            cancelled_requests.discard(request_id)
+            break
+
         chunk = summaries[i:i + chunk_size]
         combined_summary = " ".join(chunk)
 
-        visual_prompt = generate_visual_prompt(combined_summary)
-        image_url = generate_image(visual_prompt, size=size)
+        visual_prompt = generate_visual_prompt(combined_summary, request_id=request_id)
+        image_url = generate_image(visual_prompt, size=size, request_id=request_id)
 
         images.append({
             "index": i // chunk_size,

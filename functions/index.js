@@ -14,7 +14,7 @@ exports.onNewSubtitleUpload = onObjectFinalized(async (event) => {
 
   console.log(`🆕 Нов субтитър открит: ${filePath}`);
 
-  const BACKEND_URL = "https:///2e80f54e7aaf.ngrok-free.app/sync";
+  const BACKEND_URL = "https://movie-app-backend-8emc.onrender.com/sync";
 
   return axios.post(BACKEND_URL, {
     filename: filePath,
