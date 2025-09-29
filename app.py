@@ -60,31 +60,22 @@ def summarize():
         input_text = None
         request_id = None
 
-        # 🆕 Генерираме или вземаме request_id
+        language = "en"
+
         if request.is_json:
             data = request.get_json()
             input_text = data.get("text")
             request_id = data.get("request_id", str(uuid.uuid4()))
-
-
+            language = data.get("language", "en")  # 🟢 ново
         elif "audio" in request.files:
-
             audio_file = request.files["audio"]
-
             audio_path = "temp_audio.wav"
-
             audio_file.save(audio_path)
-
             print("🎤 Получен е аудио файл:", audio_path)
-
             input_text = transcribe_audio(audio_path)
-
             print("📝 Извлечен текст:", input_text)
-
-            # ✅ ВЗЕМИ request_id от multipart, ако го има
-
             request_id = request.form.get("request_id", str(uuid.uuid4()))
-
+            language = request.form.get("language", "en")  # 🟢 ново
         else:
             request_id = str(uuid.uuid4())
 
@@ -114,8 +105,12 @@ def summarize():
             for i, scene in enumerate(scenes_until_now):
                 print(f"▶️ Сцена {i + 1}:\n{scene[:200]}...\n")
 
-            summary = summarize_until_now(scenes_until_now, movie_name=movie, request_id=request_id)
-            character_profiles = extract_character_profiles(summary, movie_name=movie, request_id=request_id)
+            summary = summarize_until_now(
+                scenes_until_now, movie_name=movie, request_id=request_id, language=language
+            )
+            character_profiles = extract_character_profiles(
+                summary, movie_name=movie, request_id=request_id, language=language
+            )
 
             scene_chunks = [
                 "\n".join(scenes_until_now[i:i + 5])
@@ -126,7 +121,9 @@ def summarize():
             chunk_summaries = []
             for i, chunk in enumerate(scene_chunks):
                 try:
-                    chunk_summary = summarize_scene(chunk, movie_name=movie, request_id=request_id)
+                    chunk_summary = summarize_scene(
+                        chunk, movie_name=movie, request_id=request_id, language=language
+                    )
                     print(f"[CHUNK {i + 1}] Обобщение: {chunk_summary}")
                     chunk_summaries.append(chunk_summary)
                 except Exception as e:
@@ -158,7 +155,8 @@ def summarize():
             "summary_until_now": summary,
             "character_profiles": character_profiles,
             "chunk_summaries": chunk_summaries,
-            "request_id": request_id
+            "request_id": request_id,
+            "language": language
         }
 
         print("[DEBUG] Отговор към клиента:")

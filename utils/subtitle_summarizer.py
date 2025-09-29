@@ -10,9 +10,20 @@ from utils.actor_lookup import get_actor_name
 # Настройване на OpenAI API ключа
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+LANGUAGE_MAP = {
+    "en": "English",
+    "bg": "Bulgarian",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "it": "Italian",
+    # тук можеш да добавяш още езици
+}
 
-def summarize_scene(scene_text, movie_name=None, request_id=None):
+
+def summarize_scene(scene_text, movie_name=None, request_id=None, language="en"):
     from app import cancelled_requests
+    language_name = LANGUAGE_MAP.get(language, "English")
     if request_id and request_id in cancelled_requests:
         cancelled_requests.discard(request_id)
         raise Exception("Request was cancelled during summarize_scene")
@@ -46,11 +57,12 @@ def count_tokens(text: str, model: str = "gpt-3.5-turbo") -> int:
     encoding = tiktoken.encoding_for_model(model)
     return len(encoding.encode(text))
 
-def summarize_until_now(scenes, movie_name=None, max_tokens=15000, request_id=None):
+def summarize_until_now(scenes, movie_name=None, max_tokens=15000, request_id=None, language="en"):
     scene_summaries = []
     context_so_far = ""
     model = "gpt-3.5-turbo"
     intro_tokens = count_tokens(f'Филмът "{movie_name or "Unknown"}" започва със сцената...\n\n', model=model)
+    language_name = LANGUAGE_MAP.get(language, "English")
 
     for i, scene in enumerate(scenes):
         from app import cancelled_requests
@@ -62,6 +74,18 @@ def summarize_until_now(scenes, movie_name=None, max_tokens=15000, request_id=No
 
         prompt = dedent(f"""
         You are a professional movie assistant helping summarize scenes for the film "{movie_name or 'Unknown'}".
+        
+        Your task is to produce the output entirely in {language_name}.  
+        Do not include any words or sentences in any other language.  
+        If the input is in another language, you must translate it fully into {language_name}.  
+        The result must read as if it were originally written in {language_name}, not a translation.
+
+        
+        IMPORTANT:
+        - Write the entire summary strictly in {language_name} language.
+        - Do not use any other language, even partially.
+        - Translate and adapt naturally into {language_name} language while fully preserving the meaning, tone, cinematic detail, and clarity of the text.
+        - The output must sound like it was originally written in {language_name} language, not like a translation.
 
         This is Scene {i + 1}.
 
@@ -120,7 +144,10 @@ Do not add commentary or interpretation — just narrate the story as it unfolds
     introduction = f'Филмът "{movie_name or "Unknown"}" започва със сцената...\n\n'
 
     final_prompt = dedent(f"""
-    Combine all of these scene descriptions into a single structured summary.
+    Combine all of these scene descriptions into a single structured summary.  
+    The entire output must be written strictly in {language_name}.  
+    Do not use any other language, even partially.  
+
 
     Each scene should:
     - Begin with a divider: "———— Scene X ————"
@@ -172,7 +199,8 @@ import re
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def extract_character_profiles(summary_text: str, movie_name: str | None = None, max_characters: int = 10, request_id=None):
+def extract_character_profiles(summary_text: str, movie_name: str | None = None, max_characters: int = 10, request_id=None, language="en"):
+    language_name = LANGUAGE_MAP.get(language, "English")
     if not summary_text or not isinstance(summary_text, str):
         return []
 
@@ -187,6 +215,16 @@ def extract_character_profiles(summary_text: str, movie_name: str | None = None,
     prompt = f"""
 Extract detailed character profiles from the movie summary below. Focus only on HUMAN characters.
 Exclude clubs, places, schools, tools, brands, and non-human entities.
+
+IMPORTANT:
+- Write all character descriptions strictly in {language_name}.
+- Do not mix languages. Use only {language_name} for the descriptive text.
+- Always keep character names in English (do not translate them).
+- The text must read as if it was originally written in {language_name}, not as a translation.
+- Do not invent characters who are not explicitly present in the summary.
+- Every field in the JSON must follow the format strictly. Do not add extra fields or explanations.
+
+
 
 Return strict JSON in this format:
 {{
