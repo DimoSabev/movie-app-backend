@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "moviescenesummarizer",
+  "private_key_id": "833239ce1290e6213e4612ec57d56e59289855af",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCp7LtW38OBs45n\ndicpM6ZXddO1fBK8jaQS4LbDx/596oDeqONYkZZxQ9nxQ7SGVUOxzPUvF1kT4CEd\nOz+w7zlSFWkb6WfFnV0AxaJFOAOgkzmK7YJQMmGeApbMm8vLpWSp+FQtSO7ZwjY1\nus+aF8eeup0EveT3tPPepHVJnwkF/0Iaz1G4jdxmQn303cHfa6kHRUUomr9fI9xY\ntgUHRN6fK/G16KVqYQ0vHeYiO3MechBZEAQQ7EJeyHkqrd5jTwOC8zNNtwkKg478\nuJ3VJ39h4nAS7rR88B4QXES0mFgoMr1aefEa40a3wlpl1CDW4X82Z9TbXP5CQLEb\nDpRqCEAZAgMBAAECggEAF/1sm4C+5N5ZQgEb2UTJ/LoNWCd6q7Uhj2q7Utu28cb8\nR7M3WadAQqBuMhI5d+esxXrmuK3GrTgs5KgbP1se0BhmvQKQXIVxfmzoknYsiOyQ\nKK2Mgs8CGiFKcfui447nrdl55OTRl9vD9IT5z0sBK0c0aNl4bIJXFb1JM8oop3hd\niseZjeMaqp/xl2Sg2gnCxxLxR9ABwN4+AOWLcCSGfOGszKfq2JIpt/GwRE8C3rZe\ncJPH1fudVgVzdQptubXEwn5Zs5RTyWO1OIqT9gDeHNto57mtqY8VesuYlXCKUunH\nmtq68XQSYy8inGfsLari+0zcUXO8LxL7NyJ5nnTlwwKBgQDmJvlHCNaPeYxLiCj0\nLH5dIU1i8EmEKrdSWdlxlP/2ckh3k7HGhyLS/hB0liclAtXKCO9FLn3Uke8u37vt\nwESWJS3c49SacsF06GoAkUrlMSog3+G/+OXy1wafXnBblVWdaVnZ+7DCDqvhF3Ut\nljT9Ya1rOJ/OoXsqKZ6TQVEh4wKBgQC9Ai2aM6Iztmx0itSyu06qfJL0QKpHj+Up\nf7YJ6pljXt3eiEpHo8krQvvseiD44jTHDfsiFN8yFqVQ62Vn5ZU5vnfY7StXZp6g\n0QmVBIix/hmxtVLx6I0tO7ZAsUcpUH+syHw+rqucyz5Zce/8DHLF+PpWNDeH8z70\nb9IRQ4oG0wKBgQCajOdubR/v/tZYTln6BfrhPSDDZMppZ2ntcgqTvFPaQcoqClMi\nFtMqzpNsRvyIXQwFfNR4J4019r2gQ3vmXutvzA2tPI0jHhaNFBlCwk6B8+7vXogx\nKsn3ta9ry7Y1ueVhLEK7H8oFtmZzZBY7A5gX4sTasI6X6lZT7Njg18bMswKBgEM/\nwSX6dR3dLF2S//bP+j9ir47Ea1Gm+yx2yjhhBk569Io3B+bRecQwwx3ynkSvh4PD\nj7Uio/9YW12dQ6lh4GR5Rn8ic6dXVd12QuiIgnKCLHY0Q9zal1CezEvcR6uFfsfl\nVX+f+mOBVR/SEEcnzrZtzfRaA+AVRjMGjkGiPDwNAoGBAOBwY/3F7ZJTVTMyveT1\nLctwqVE9K9K1Qxh0xRrYUKkwceTid7GbHpNzOgJnOW4f3BFrsJmiNPJ3TBbh+Y6v\nVjRf7gAunPz1LHewMfWFSp0KunG9Z1I5R9/CJKLtW47aNTB3KYIBaVKrBdaS+iAM\nWXubIa7GuKi89PvRm9jJENqg\n-----END PRIVATE KEY-----\n",
+  "client_email": "moviesceneservice-265@moviescenesummarizer.iam.gserviceaccount.com",
+  "client_id": "109370606260055507428",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/moviesceneservice-265%40moviescenesummarizer.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
